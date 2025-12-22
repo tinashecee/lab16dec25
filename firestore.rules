@@ -1,0 +1,288 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Helper functions
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isValidPriority(priority) {
+      return priority in ['Normal', 'Urgent', 'Emergency'];
+    }
+
+    function isValidCallPurpose(purpose) {
+      return purpose in ['inquiry', 'complaint', 'follow_up'];
+    }
+
+    function isValidSampleStatus(status) {
+      return status in ['Pending', 'Assigned', 'InProgress', 'Completed', 'Cancelled'];
+    }
+
+    function isValidLeaveStatus(status) {
+      return status in ['Pending', 'Approved', 'Rejected'];
+    }
+
+    function isValidLoanStatus(status) {
+      return status in ['pending', 'approved', 'rejected'];
+    }
+
+    function isValidQueryStatus(status) {
+      return status in ['Open', 'In Progress', 'Resolved', 'Closed'];
+    }
+
+    function isValidQueryPriority(priority) {
+      return priority in ['Low', 'Normal', 'High', 'Urgent'];
+    }
+
+    function isValidQueryCategory(category) {
+      return category in ['Equipment', 'Sample Processing', 'Reporting', 'Safety', 'Quality Control', 'General'];
+    }
+
+    // Rules for collection requests
+    match /collectionRequests/{requestId} {
+      allow read: if isSignedIn();
+      allow create: if 
+        isSignedIn() &&
+        request.resource.data.medicalCenter is map &&
+        request.resource.data.medicalCenter.name is string &&
+        request.resource.data.medicalCenter.address is string &&
+        request.resource.data.medicalCenter.contactPerson is string &&
+        request.resource.data.medicalCenter.phoneNumber is string &&
+        request.resource.data.priority is string &&
+        request.resource.data.expectedPickupTime is string &&
+        request.resource.data.sampleDetails is map &&
+        request.resource.data.sampleDetails.type is string &&
+        request.resource.data.sampleDetails.quantity is number &&
+        request.resource.data.status in ['pending', 'assigned', 'collected', 'cancelled'];
+      
+      allow update: if
+        isSignedIn() &&
+        (!request.resource.data.diff(resource.data).affectedKeys()
+          .hasAny(['id', 'requestedAt']));
+      
+      allow delete: if false;
+    }
+
+    // Rules for leave requests
+    match /leaveRequests/{requestId} {
+      allow read: if true;
+      allow create: if 
+        request.resource.data.employeeId is string &&
+        request.resource.data.employeeName is string &&
+        request.resource.data.department is string &&
+        request.resource.data.type is string &&
+        request.resource.data.startDate is string &&
+        request.resource.data.endDate is string &&
+        request.resource.data.days is number &&
+        request.resource.data.contact is string &&
+        request.resource.data.status is string &&
+        isValidLeaveStatus(request.resource.data.status);
+      
+      allow update: if
+        (!request.resource.data.diff(resource.data).affectedKeys()
+          .hasAny(['id', 'employeeId', 'employeeName', 'createdAt'])) &&
+        (request.resource.data.status == resource.data.status ||
+          isValidLeaveStatus(request.resource.data.status));
+      
+      allow delete: if true;
+    }
+
+    // Rules for loan requests
+    match /loanRequests/{requestId} {
+      allow read: if isSignedIn();
+      allow create: if 
+        isSignedIn() &&
+        request.resource.data.employeeId is string &&
+        request.resource.data.employeeName is string &&
+        request.resource.data.department is string &&
+        request.resource.data.amount is number &&
+        request.resource.data.purpose is string &&
+        request.resource.data.repaymentMonths is number &&
+        request.resource.data.status is string &&
+        isValidLoanStatus(request.resource.data.status);
+      
+      allow update: if
+        isSignedIn() &&
+        (!request.resource.data.diff(resource.data).affectedKeys()
+          .hasAny(['id', 'employeeId', 'employeeName', 'createdAt'])) &&
+        (request.resource.data.status == resource.data.status ||
+          isValidLoanStatus(request.resource.data.status));
+      
+      allow delete: if false;
+    }
+
+    // Rules for call logs
+    match /callLogs/{logId} {
+      allow read: if true;
+      allow create: if 
+        request.resource.data.callPurpose is string &&
+        isValidCallPurpose(request.resource.data.callPurpose) &&
+        request.resource.data.priority is string &&
+        isValidPriority(request.resource.data.priority) &&
+        request.resource.data.callerName is string &&
+        request.resource.data.callerNumber is string;
+    }
+
+    // Rules for sample collections
+    match /sampleCollections/{requestId} {
+      allow read: if true;
+      allow create: if 
+        request.resource.data.priority is string &&
+        isValidPriority(request.resource.data.priority) &&
+        request.resource.data.status is string &&
+        isValidSampleStatus(request.resource.data.status);
+      
+      allow update: if
+        (!request.resource.data.diff(resource.data).affectedKeys()
+          .hasAny(['id', 'requestedAt'])) &&
+        (request.resource.data.status == resource.data.status ||
+          isValidSampleStatus(request.resource.data.status));
+    }
+
+    match /counters/{counterId} {
+      allow read: if true;
+      allow write: if true; // You might want to restrict this based on user role
+    }
+
+    match /departments/{departmentId} {
+      allow read: if true;
+      allow create: if 
+        request.resource.data.departmentId is string &&
+        request.resource.data.name is string &&
+        request.resource.data.head is string &&
+        request.resource.data.roles is list;
+      
+      allow update: if
+        request.resource.data.name is string &&
+        request.resource.data.head is string &&
+        request.resource.data.roles is list;
+    }
+
+    match /collectionCenters/{centerId} {
+      allow read: if true;  // For development, tighten this for production
+      allow write: if true; // For development, tighten this for production
+    }
+
+    match /approvalRules/{ruleId} {
+      allow read: if true;
+      allow write: if isSignedIn() && request.auth.token.admin == true;
+    }
+
+    match /leave-requests/{requestId} {
+      allow read: if request.auth != null;
+      allow write: if request.auth != null;
+    }
+
+    // Rules for queries
+    match /queries/{queryId} {
+      allow read: if isSignedIn();
+      allow create: if 
+        isSignedIn() &&
+        request.resource.data.title is string &&
+        request.resource.data.description is string &&
+        request.resource.data.category is string &&
+        isValidQueryCategory(request.resource.data.category) &&
+        request.resource.data.priority is string &&
+        isValidQueryPriority(request.resource.data.priority) &&
+        request.resource.data.status is string &&
+        isValidQueryStatus(request.resource.data.status) &&
+        request.resource.data.submittedBy is string &&
+        request.resource.data.submittedByName is string;
+      
+      allow update: if
+        isSignedIn() &&
+        (!request.resource.data.diff(resource.data).affectedKeys()
+          .hasAny(['id', 'submittedBy', 'submittedByName', 'createdAt'])) &&
+        (request.resource.data.status == resource.data.status ||
+          isValidQueryStatus(request.resource.data.status));
+      
+      allow delete: if false;
+    }
+
+    // Rules for tasks
+    match /tasks/{taskId} {
+      allow read: if isSignedIn();
+      allow write: if isSignedIn();
+    }
+
+    // Note: Role-based access control is handled at the application level
+    // Firestore rules use isSignedIn() for basic authentication
+
+    // Helper function to validate fuel request status
+    function isValidFuelRequestStatus(status) {
+      return status in ['PENDING', 'APPROVED', 'REJECTED', 'FLAGGED'];
+    }
+
+    // Rules for vehicles
+    match /vehicles/{vehicleId} {
+      allow read: if isSignedIn();
+      allow create: if isSignedIn() &&
+        request.resource.data.registration_number is string &&
+        request.resource.data.created_at is timestamp;
+      allow update: if isSignedIn() &&
+        request.resource.data.registration_number is string;
+      allow delete: if false; // Prevent deletion for audit purposes
+    }
+
+    // Rules for fuel requests
+    match /fuelRequests/{requestId} {
+      allow read: if isSignedIn();
+      allow create: if isSignedIn() &&
+        request.resource.data.vehicle_id is string &&
+        request.resource.data.driver_id is string &&
+        request.resource.data.odometer_reading is number &&
+        request.resource.data.fuel_requested_litres is number &&
+        request.resource.data.status is string &&
+        isValidFuelRequestStatus(request.resource.data.status) &&
+        request.resource.data.request_date is timestamp &&
+        request.resource.data.created_at is timestamp;
+      allow update: if isSignedIn() &&
+        (!request.resource.data.diff(resource.data).affectedKeys()
+          .hasAny(['id', 'vehicle_id', 'driver_id', 'request_date', 'created_at'])) &&
+        (request.resource.data.status == resource.data.status ||
+          isValidFuelRequestStatus(request.resource.data.status));
+      allow delete: if false; // Prevent deletion for audit purposes
+    }
+
+    // Rules for fuel economy audit
+    match /fuelEconomyAudit/{auditId} {
+      allow read: if isSignedIn();
+      allow create: if isSignedIn() &&
+        request.resource.data.vehicle_id is string &&
+        request.resource.data.new_value is number &&
+        request.resource.data.changed_by is string &&
+        request.resource.data.changed_at is timestamp;
+      allow update: if false; // Audit records should not be modified
+      allow delete: if false; // Audit records should not be deleted
+    }
+
+    // Rules for fuel alerts
+    match /fuelAlerts/{alertId} {
+      allow read: if isSignedIn();
+      allow create: if isSignedIn() &&
+        request.resource.data.fuel_request_id is string &&
+        request.resource.data.alert_type is string &&
+        request.resource.data.message is string &&
+        request.resource.data.acknowledged is bool &&
+        request.resource.data.created_at is timestamp;
+      allow update: if isSignedIn() &&
+        (!request.resource.data.diff(resource.data).affectedKeys()
+          .hasAny(['id', 'fuel_request_id', 'alert_type', 'message', 'created_at']));
+      allow delete: if false; // Prevent deletion for audit purposes
+    }
+
+    // Rules for fuel settings
+    match /fuelSettings/{settingsId} {
+      allow read: if isSignedIn();
+      allow create: if isSignedIn() &&
+        request.resource.data.variance_threshold_percentage is number &&
+        request.resource.data.updated_at is timestamp &&
+        request.resource.data.updated_by is string;
+      allow update: if isSignedIn() &&
+        request.resource.data.variance_threshold_percentage is number &&
+        request.resource.data.updated_at is timestamp &&
+        request.resource.data.updated_by is string;
+      allow delete: if false; // Prevent deletion
+    }
+  }
+} 
