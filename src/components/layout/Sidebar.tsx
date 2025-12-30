@@ -1,4 +1,4 @@
-import { NavLink } from 'react-router-dom';
+import { NavLink, useLocation } from 'react-router-dom';
 import {
   LayoutDashboard,
   Users,
@@ -27,7 +27,15 @@ const navigation = [
   { name: 'Tasks', href: '/app/tasks', icon: ClipboardList },
   { name: 'Inventory', href: '/app/inventory', icon: Package },
   { name: 'Finance', href: '/app/finance', icon: Landmark },
-  { name: 'Driver Management', href: '/app/driver-management', icon: Car },
+  {
+    name: 'Driver Management',
+    href: '/app/drivers',
+    icon: Car,
+    children: [
+      { name: 'Attendance', href: '/app/drivers?view=attendance' },
+      { name: 'Location', href: '/app/drivers?view=location' },
+    ],
+  },
   { name: 'Fuel Management', href: '/app/fuel-management', icon: Fuel },
   { name: 'Reports', href: '/app/reports', icon: BarChart3 },
   { name: 'Communication', href: '/app/communication', icon: MessageSquare },
@@ -45,6 +53,8 @@ const allowedSettingsRoles = [
 
 export default function Sidebar() {
   const { role } = useCurrentUser();
+  const location = useLocation();
+  const [openDropdown, setOpenDropdown] = React.useState<string | null>(null);
 
   const filteredNavigation = navigation.filter(item => {
     if (item.name === 'Settings') {
@@ -72,24 +82,66 @@ export default function Sidebar() {
 
       <nav className="p-4 space-y-1">
         {filteredNavigation.map((item) => (
-          <div
-            key={item.name}
-          >
-            <NavLink
-              to={item.href}
-              className={({ isActive }) =>
-                `flex items-center gap-3 px-3 py-2 text-sm font-medium rounded-lg ${
-                  isActive
-                    ? 'text-primary-600 bg-primary-50'
-                    : 'text-secondary-700 hover:text-primary-600 hover:bg-gray-50'
-                }`
-              }
-            >
-              <div>
-                <item.icon className="w-5 h-5" />
-              </div>
-              {item.name}
-            </NavLink>
+          <div key={item.name} className="space-y-1">
+            {item.children ? (
+              <>
+                <button
+                  type="button"
+                  onClick={() =>
+                    setOpenDropdown((prev) => (prev === item.name ? null : item.name))
+                  }
+                  className={`w-full flex items-center justify-between gap-3 px-3 py-2 text-sm font-medium rounded-lg ${
+                    location.pathname.startsWith('/app/drivers')
+                      ? 'text-primary-600 bg-primary-50'
+                      : 'text-secondary-700 hover:text-primary-600 hover:bg-gray-50'
+                  }`}
+                >
+                  <span className="flex items-center gap-3">
+                    <item.icon className="w-5 h-5" />
+                    {item.name}
+                  </span>
+                  <span className="text-xs text-secondary-500">
+                    {openDropdown === item.name ? '▾' : '▸'}
+                  </span>
+                </button>
+                {openDropdown === item.name && (
+                  <div className="ml-8 space-y-1">
+                    {item.children.map((child) => (
+                      <NavLink
+                        key={child.name}
+                        to={child.href}
+                        className={({ isActive }) =>
+                          `flex items-center gap-2 px-3 py-2 text-sm rounded-lg ${
+                            isActive
+                              ? 'text-primary-600 bg-primary-50'
+                              : 'text-secondary-700 hover:text-primary-600 hover:bg-gray-50'
+                          }`
+                        }
+                      >
+                        <span className="w-2 h-2 rounded-full bg-primary-400" />
+                        {child.name}
+                      </NavLink>
+                    ))}
+                  </div>
+                )}
+              </>
+            ) : (
+              <NavLink
+                to={item.href}
+                className={({ isActive }) =>
+                  `flex items-center gap-3 px-3 py-2 text-sm font-medium rounded-lg ${
+                    isActive
+                      ? 'text-primary-600 bg-primary-50'
+                      : 'text-secondary-700 hover:text-primary-600 hover:bg-gray-50'
+                  }`
+                }
+              >
+                <div>
+                  <item.icon className="w-5 h-5" />
+                </div>
+                {item.name}
+              </NavLink>
+            )}
           </div>
         ))}
       </nav>

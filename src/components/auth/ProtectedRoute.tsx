@@ -7,14 +7,15 @@ interface ProtectedRouteProps {
 }
 
 export default function ProtectedRoute({ children }: ProtectedRouteProps) {
-  const { user, loading } = useAuth();
+  const { user, userData, loading } = useAuth();
   const location = useLocation();
 
   if (loading) {
     return <div>Loading...</div>; // Or your loading component
   }
 
-  if (!user || !sessionService.isSessionValid()) {
+  // Must have a valid session and a provisioned user record in this app
+  if (!user || !sessionService.isSessionValid() || !userData) {
     return <Navigate to="/login" state={{ from: location }} replace />;
   }
 

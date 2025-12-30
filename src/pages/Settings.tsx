@@ -16,6 +16,7 @@ import CalendarSettings from "../components/settings/CalendarSettings";
 import BusinessManualSettings from "../components/settings/BusinessManualSettings";
 import RolesSettings from "../components/settings/RolesSettings";
 import CentersSettings from "../components/settings/CentersSettings";
+import CenterUsersSettings from "../components/settings/CenterUsersSettings";
 import { TestsTable } from '../components/settings/TestsTable';
 import ApprovalRulesSettings from '../components/settings/ApprovalRulesSettings';
 import OrganizationsSettings from '../components/settings/OrganizationsSettings';
@@ -32,6 +33,7 @@ type SettingSection =
   | "business-manual"
   | "roles"
   | "centers"
+  | "center-users"
   | "organizations"
   | "approval-rules"
   | "icd-codes"
@@ -80,6 +82,12 @@ const settingSections = [
     title: "Collection Centers",
     description: "Manage sample collection centers",
     icon: MapPin,
+  },
+  {
+    id: "center-users",
+    title: "Center Users",
+    description: "Approve or deactivate center user access",
+    icon: Users,
   },
   {
     id: "organizations",
@@ -168,6 +176,7 @@ export default function Settings() {
               {activeSection === "business-manual" && <BusinessManualSettings />}
               {activeSection === "roles" && <RolesSettings />}
               {activeSection === "centers" && <CentersSettings />}
+              {activeSection === "center-users" && <CenterUsersSettings />}
               {activeSection === "organizations" && <OrganizationsSettings />}
               {activeSection === "approval-rules" && <ApprovalRulesSettings />}
               {activeSection === "icd-codes" && <ICDCodesSettings />}

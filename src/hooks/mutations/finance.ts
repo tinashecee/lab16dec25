@@ -35,7 +35,8 @@ export function useRecordDisbursement() {
 
   return useMutation({
     mutationFn: (input: {
-      sampleId: string;
+      sampleId?: string;
+      patientName?: string;
       nurseId: string;
       nurseName?: string;
       driverId: string;

@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import {
   CheckCircle,
   XCircle,
@@ -71,7 +71,7 @@ export default function FuelRequestsTable({ onRefresh }: FuelRequestsTableProps)
   }, [statusFilter, dateRange, userData]);
 
   // Use TanStack Query to fetch requests
-  const { data: requests = [], isLoading: loading, error, refetch } = useFuelRequests(queryFilters);
+  const { data: requests = [], isLoading: loading, error } = useFuelRequests(queryFilters);
 
   // Mutations
   const approveMutation = useApproveFuelRequest();
@@ -83,6 +83,7 @@ export default function FuelRequestsTable({ onRefresh }: FuelRequestsTableProps)
     try {
       await approveMutation.mutateAsync({
         requestId: selectedRequest.id,
+        approverId: userData.id,
         approverName: userData.name,
         comments: actionNotes,
       });
@@ -107,6 +108,7 @@ export default function FuelRequestsTable({ onRefresh }: FuelRequestsTableProps)
     try {
       await rejectMutation.mutateAsync({
         requestId: selectedRequest.id,
+        approverId: userData.id,
         approverName: userData.name,
         comments: actionNotes,
       });
@@ -648,7 +650,7 @@ export default function FuelRequestsTable({ onRefresh }: FuelRequestsTableProps)
                   } disabled:opacity-50 disabled:cursor-not-allowed`}
                   disabled={approveMutation.isPending || rejectMutation.isPending}
                 >
-                  {processingAction
+                  {approveMutation.isPending || rejectMutation.isPending
                     ? 'Processing...'
                     : actionType === 'approve'
                     ? 'Approve'

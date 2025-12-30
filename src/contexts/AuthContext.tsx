@@ -140,7 +140,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         }
       } else {
         console.warn("No user data found for:", email);
+        // User is authenticated in Firebase but not provisioned in this app
+        await signOut(auth);
+        sessionService.clearSession();
+        setUser(null);
         setUserData(null);
+        setError("Your account is not provisioned for this application.");
       }
     } catch (err) {
       console.error("Error loading user data:", err);

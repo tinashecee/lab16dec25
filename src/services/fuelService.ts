@@ -304,7 +304,7 @@ export async function approveFuelRequest(
     approved_by: approverId,
     approved_by_name: approverName,
     approved_at: serverTimestamp(),
-    admin_notes: notes,
+    admin_notes: notes ?? '',
     updated_at: serverTimestamp(),
   });
 

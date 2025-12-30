@@ -105,7 +105,8 @@ export const vpService = {
 
   // Disbursements
   async recordVPDisbursement(input: {
-    sampleId: string;
+    sampleId?: string;
+    patientName?: string;
     nurseId: string;
     nurseName?: string;
     driverId: string;
@@ -149,8 +150,8 @@ export const vpService = {
 
       // Create disbursement
       const disbRef = doc(collection(db, DISBURSEMENTS_COLLECTION));
-      const disbData: Omit<VPDisbursement, 'id'> = {
-        sampleId: input.sampleId,
+      const disbData: Partial<VPDisbursement> = {
+        patientName: input.patientName,
         nurseId: input.nurseId,
         nurseName: input.nurseName,
         driverId: input.driverId,
@@ -163,6 +164,11 @@ export const vpService = {
         createdByUserName: input.createdByUserName,
         floatId
       };
+
+      // Only set sampleId if provided; otherwise omit to avoid undefined
+      if (input.sampleId) {
+        disbData.sampleId = input.sampleId;
+      }
       tx.set(disbRef, disbData);
 
       // Create float transaction (debit)

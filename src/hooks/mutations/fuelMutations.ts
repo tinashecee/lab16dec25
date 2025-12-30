@@ -54,8 +54,17 @@ export function useSubmitFuelRequest() {
 export function useApproveFuelRequest() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: ({ requestId, approverName, comments }: { requestId: string; approverName: string; comments?: string }) =>
-      fuelService.approveFuelRequest(requestId, approverName, comments),
+    mutationFn: ({
+      requestId,
+      approverId,
+      approverName,
+      comments,
+    }: {
+      requestId: string;
+      approverId: string;
+      approverName: string;
+      comments?: string;
+    }) => fuelService.approveFuelRequest(requestId, approverId, approverName, comments),
     onSuccess: (_, variables) => {
       queryClient.invalidateQueries({ queryKey: ['fuel', 'requests'] });
       queryClient.invalidateQueries({ queryKey: ['fuel', 'requests', variables.requestId] });
@@ -69,8 +78,17 @@ export function useApproveFuelRequest() {
 export function useRejectFuelRequest() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: ({ requestId, approverName, comments }: { requestId: string; approverName: string; comments?: string }) =>
-      fuelService.rejectFuelRequest(requestId, approverName, comments),
+    mutationFn: ({
+      requestId,
+      approverId,
+      approverName,
+      comments,
+    }: {
+      requestId: string;
+      approverId: string;
+      approverName: string;
+      comments: string;
+    }) => fuelService.rejectFuelRequest(requestId, approverId, approverName, comments),
     onSuccess: (_, variables) => {
       queryClient.invalidateQueries({ queryKey: ['fuel', 'requests'] });
       queryClient.invalidateQueries({ queryKey: ['fuel', 'requests', variables.requestId] });

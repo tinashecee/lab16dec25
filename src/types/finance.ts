@@ -47,7 +47,8 @@ export interface DriverStatementEntry {
 
 export interface VPDisbursement {
   id?: string;
-  sampleId: string;
+  sampleId?: string; // optional, we now allow patient-name-only disbursements
+  patientName?: string;
   nurseId: string;
   nurseName?: string;
   driverId: string;
