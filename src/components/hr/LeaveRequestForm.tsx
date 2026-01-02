@@ -82,11 +82,14 @@ export default function LeaveRequestForm({
     }
   };
 
-  const calculateDays = async (start: string, end: string) => {
+  const calculateDays = async (start: string, end: string, type?: string) => {
     if (!start || !end) return 0;
     try {
-      const days = await leaveService.calculateBusinessDays(start, end);
-      return days;
+      // Maternity counts continuous days (includes weekends/holidays)
+      if (type === "Maternity") {
+        return leaveService.calculateCalendarDays(start, end);
+      }
+      return await leaveService.calculateBusinessDays(start, end);
     } catch (error) {
       console.error("Error calculating days:", error);
       return 0;
@@ -201,7 +204,7 @@ export default function LeaveRequestForm({
                 value={formData.from}
                 onChange={async (e) => {
                   const newStartDate = e.target.value;
-                  const days = await calculateDays(newStartDate, formData.to);
+                  const days = await calculateDays(newStartDate, formData.to, formData.type);
                   setCalculatedDays(days);
                   setFormData({
                     ...formData,
@@ -223,7 +226,7 @@ export default function LeaveRequestForm({
                 value={formData.to}
                 onChange={async (e) => {
                   const newEndDate = e.target.value;
-                  const days = await calculateDays(formData.from, newEndDate);
+                  const days = await calculateDays(formData.from, newEndDate, formData.type);
                   setCalculatedDays(days);
                   setFormData({
                     ...formData,

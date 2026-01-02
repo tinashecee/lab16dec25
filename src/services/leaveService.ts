@@ -272,6 +272,16 @@ export const leaveService = {
     }
   },
 
+  // Continuous day count (includes weekends/holidays) for leave types like Maternity
+  calculateCalendarDays(startDate: string, endDate: string): number {
+    const start = moment(startDate);
+    const end = moment(endDate);
+    if (!start.isValid() || !end.isValid() || end.isBefore(start)) {
+      return 0;
+    }
+    return end.diff(start, "days") + 1; // inclusive
+  },
+
   async calculateBusinessDays(
     startDate: string,
     endDate: string
