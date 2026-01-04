@@ -548,23 +548,23 @@ export const leaveService = {
 
       // Send email notification
       const response = await fetch(
-        "https://app.labpartners.co.zw/send-loan-res-email",
+        "https://app.labpartners.co.zw/send-leave-res-email",
         {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
           },
           body: JSON.stringify({
-            a: requestData?.name,
-            b: "APPROVED",
-            c: requestData?.request_id,
-            d: requestData?.type,
-            e: requestData?.date_requested,
-            f: requestData?.from,
-            g: requestData?.to,
-            h: requestData?.days,
-            i: requestData?.email,
-            j: comments,
+            a: requestData?.name, // userName
+            b: "APPROVED", // response
+            c: requestData?.request_id, // requestId
+            d: requestData?.type, // leaveType
+            e: requestData?.date_requested, // dateRequested
+            f: requestData?.from, // startDate
+            g: requestData?.to, // endDate
+            h: requestData?.days, // leaveDays
+            i: requestData?.email, // email
+            j: comments, // comments
           }),
         }
       );

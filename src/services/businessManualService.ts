@@ -14,6 +14,7 @@ import {
 } from "firebase/firestore";
 import { db } from "../config/firebase";
 import { getStorage, ref, uploadBytes, getDownloadURL } from "firebase/storage";
+import moment from "moment";
 
 export interface ManualSection {
   id: string;
@@ -77,6 +78,13 @@ const manualContentsCollection = collection(db, "manualContents");
 const COLLECTION_NAME = 'businessDocuments';
 
 export const businessManualService = {
+  async getAllUserEmails(): Promise<string[]> {
+    const usersRef = collection(db, "users");
+    const snap = await getDocs(usersRef);
+    return snap.docs
+      .map((d) => (d.data() as { email?: string }).email)
+      .filter((e): e is string => !!e);
+  },
   // Section Operations
   async getSections(): Promise<ManualSection[]> {
     try {
@@ -304,16 +312,69 @@ export const businessManualService = {
     };
 
     const docRef = await addDoc(collection(db, COLLECTION_NAME), docData);
+    try {
+      const emails = await this.getAllUserEmails();
+      const today = moment().format("YYYY-MM-DD");
+      await Promise.all(
+        emails.map((email) =>
+          fetch("https://app.labpartners.co.zw/send-business-manual-added-email", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              a: documentData?.createdBy?.name || "System", // userName
+              b: today, // dateAdded
+              c: today, // effectiveDate (fallback)
+              d: documentData?.fileName || "v1", // version
+              e: documentData?.category || "General", // department/category
+              f: documentData?.description || "", // notes
+              g: today, // lastUpdated
+              h: fileUrl, // file_url
+              i: email, // email
+            }),
+          }).catch(() => undefined)
+        )
+      );
+    } catch (e) {
+      console.error("Failed to send business manual added emails", e);
+    }
     return docRef.id;
   },
 
   // Update a document
   async updateDocument(documentId: string, data: Partial<BusinessDocument>) {
     const docRef = doc(db, COLLECTION_NAME, documentId);
+    const existing = await getDoc(docRef);
     await updateDoc(docRef, {
       ...data,
       updatedAt: serverTimestamp(),
     });
+    try {
+      const emails = await this.getAllUserEmails();
+      const today = moment().format("YYYY-MM-DD");
+      const current = existing.data() as BusinessDocument | undefined;
+      const fileUrl = (data as any)?.fileUrl || current?.fileUrl || "";
+      await Promise.all(
+        emails.map((email) =>
+          fetch("https://app.labpartners.co.zw/send-business-manual-updated-email", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              a: (current as any)?.createdBy?.name || "System", // userName
+              b: today, // dateAdded
+              c: today, // effectiveDate
+              d: data?.fileName || current?.fileName || "v1", // version
+              e: current?.category || "General", // department/category
+              f: data?.description || current?.description || "", // notes
+              g: today, // lastUpdated
+              h: fileUrl, // file_url
+              i: email, // email
+            }),
+          }).catch(() => undefined)
+        )
+      );
+    } catch (e) {
+      console.error("Failed to send business manual updated emails", e);
+    }
   },
 
   // Delete a document

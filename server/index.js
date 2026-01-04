@@ -5,8 +5,14 @@ import axios from "axios";
 import admin from "firebase-admin";
 import path from "path";
 import { twilioService } from "./services/twilioService.js";
-import SENDLEAVEAPPMAIL from "../email-generators/leave-app-response.cjs";
+import SENDLEAVEAPPMAIL from "../email-generators/leave-app-submitted.cjs";
+import SENDLEAVEAPPRESEMAIL from "../email-generators/leave-app-response.cjs";
 import SENDLOANAPPMAIL from "../email-generators/loan-application.cjs";
+import SENDLOANAPPRESEMAIL from "../email-generators/loan-response.cjs";
+import SENDHANDOVERMAIL from "../email-generators/task-handover.cjs";
+import SENDANNOUNCEMENTSMAIL from "../email-generators/announcements.cjs";
+import SENDBUSINESSMANUALADDEDMAIL from "../email-generators/business-manual-added.cjs";
+import SENDBUSINESSMANUALUPDATEDMAIL from "../email-generators/business-manual-updated.cjs";
 import emailRoutes from "./routes/email.js";
 import multer from "multer";
 import qs from "qs"; // Install qs if not already installed: npm install qs
@@ -135,7 +141,7 @@ app.post("/send-leave-res-email", async (req, res) => {
   const { a, b, c, d, e, f, g, h, i, j } = req.body;
 
   try {
-    SENDLEAVEAPPMAIL(a, b, c, d, e, f, g, h, i, j);
+    const response = await SENDLEAVEAPPRESEMAIL(a, b, c, d, e, f, g, h, i, j);
     res.status(200).send({ success: true, response });
   } catch (error) {
     res.status(500).send(error);
@@ -159,10 +165,58 @@ app.post("/send-loan-res-email", async (req, res) => {
   const { a, b, c, d, e, f, g, h, i } = req.body;
 
   try {
-    SENDLOANAPPMAIL(a, b, c, d, e, f, g, h, i);
+    const response = await SENDLOANAPPRESEMAIL(a, b, c, d, e, f, g, h, i);
     res.status(200).send({ success: true, response });
   } catch (error) {
     res.status(500).send(error);
+  }
+});
+
+// Task handover / assignment email
+// a: handover_id, b: assigned_by, c: date, d: task_name, e: task_desc, f: assigned_to, g: due_date, h: email
+app.post("/send-task-handover-email", async (req, res) => {
+  const { a, b, c, d, e, f, g, h } = req.body;
+  try {
+    const response = await SENDHANDOVERMAIL(a, b, c, d, e, f, g, h);
+    res.status(200).send({ success: true, response });
+  } catch (error) {
+    res.status(500).send({ success: false, error: error.message });
+  }
+});
+
+// Announcement email (with attachment)
+// a: userName, b: date, c: department, d: notes, e: file_url, f: email
+app.post("/send-announcement-email", async (req, res) => {
+  const { a, b, c, d, e, f } = req.body;
+  try {
+    const response = await SENDANNOUNCEMENTSMAIL(a, b, c, d, e, f);
+    res.status(200).send({ success: true, response });
+  } catch (error) {
+    res.status(500).send({ success: false, error: error.message });
+  }
+});
+
+// Business manual added email
+// a: userName, b: dateAdded, c: effectiveDate, d: version, e: department, f: notes, g: lastUpdated, h: file_url, i: email
+app.post("/send-business-manual-added-email", async (req, res) => {
+  const { a, b, c, d, e, f, g, h, i } = req.body;
+  try {
+    const response = await SENDBUSINESSMANUALADDEDMAIL(a, b, c, d, e, f, g, h, i);
+    res.status(200).send({ success: true, response });
+  } catch (error) {
+    res.status(500).send({ success: false, error: error.message });
+  }
+});
+
+// Business manual updated email
+// a: userName, b: dateAdded, c: effectiveDate, d: version, e: department, f: notes, g: lastUpdated, h: file_url, i: email
+app.post("/send-business-manual-updated-email", async (req, res) => {
+  const { a, b, c, d, e, f, g, h, i } = req.body;
+  try {
+    const response = await SENDBUSINESSMANUALUPDATEDMAIL(a, b, c, d, e, f, g, h, i);
+    res.status(200).send({ success: true, response });
+  } catch (error) {
+    res.status(500).send({ success: false, error: error.message });
   }
 });
 ////

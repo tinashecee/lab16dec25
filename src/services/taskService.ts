@@ -19,7 +19,7 @@ import { getRequisitions, Requisition } from "../lib/firestore/inventory";
 
 import { Task, TaskComment, TaskAttachment } from "../types/task";
 import { fileStorageService } from "./fileStorageService";
-import { emailService } from "./emailService";
+import moment from "moment";
 
 export interface NewTask {
   title: string;
@@ -201,18 +201,24 @@ class TaskService {
               }
             }
 
-            // Send Email notification
+            // Send Email notification via server endpoint (handover template)
             if (user.email) {
               try {
-                await emailService.sendTaskAssignmentEmail({
-                  taskId,
-                  assignedToEmail: user.email,
-                  assignedToName: user.name,
-                  assignedByName,
-                  taskTitle: taskData.title,
-                  taskDescription: taskData.description,
-                  dueDate: taskData.dueDate,
-                  priority: taskData.priority,
+                await fetch("https://app.labpartners.co.zw/send-task-handover-email", {
+                  method: "POST",
+                  headers: {
+                    "Content-Type": "application/json",
+                  },
+                  body: JSON.stringify({
+                    a: taskId, // handover_id
+                    b: assignedByName, // assigned_by
+                    c: moment().format("YYYY-MM-DD"), // date
+                    d: taskData.title, // task_name
+                    e: taskData.description, // task_desc
+                    f: user.name, // assigned_to
+                    g: taskData.dueDate, // due_date
+                    h: user.email, // email
+                  }),
                 });
                 console.log(`Email notification sent to ${user.name} (${user.email})`);
               } catch (error: unknown) {
