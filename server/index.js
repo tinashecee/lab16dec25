@@ -43,6 +43,14 @@ console.log(`🚀 Server starting in ${process.env.NODE_ENV || 'development'} mo
 
 const app = express();
 
+// Basic request logging for PM2 diagnostics
+app.use((req, _res, next) => {
+  console.log(
+    `[REQ] ${new Date().toISOString()} ${req.method} ${req.originalUrl} UA=${req.headers["user-agent"] || ""}`
+  );
+  next();
+});
+
 // Enable CORS for your frontend URL
 app.use(
   cors({
