@@ -82,6 +82,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     configurePersistence();
 
     const unsubscribe = auth.onAuthStateChanged(async (firebaseUser) => {
+      console.log("[AUTH] onAuthStateChanged", {
+        uid: firebaseUser?.uid,
+        email: firebaseUser?.email,
+      });
       setUser(firebaseUser);
       setLoading(false);
       
@@ -94,7 +98,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           try {
             await firebaseUser.getIdToken(true);
           } catch (err) {
-            console.error("Token refresh failed:", err);
+            console.error("[AUTH] Token refresh failed:", err);
           }
         }, 1800000); // 30 minutes
         
@@ -108,14 +112,25 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   // Setup activity tracking
   useEffect(() => {
     const handleUserActivity = () => sessionService.updateActivity();
+    // More verbose activity logging for debugging
+    const activityHandler = (_evt: Event) => {
+      sessionService.updateActivity();
+      // Uncomment for noisy logs:
+      // console.log("[ACTIVITY]", evt.type, Date.now());
+    };
+
     window.addEventListener('click', handleUserActivity);
     window.addEventListener('keypress', handleUserActivity);
     window.addEventListener('scroll', handleUserActivity);
+    window.addEventListener('mousemove', activityHandler);
+    document.addEventListener('visibilitychange', activityHandler);
 
     return () => {
       window.removeEventListener('click', handleUserActivity);
       window.removeEventListener('keypress', handleUserActivity);
       window.removeEventListener('scroll', handleUserActivity);
+      window.removeEventListener('mousemove', activityHandler);
+      document.removeEventListener('visibilitychange', activityHandler);
     };
   }, []);
 

@@ -38,10 +38,16 @@ export const sessionService = {
   isSessionValid() {
     try {
       const session = this.getSession();
-      if (!session) return false;
+      if (!session) {
+        console.log("[SESSION] invalid: no session in localStorage");
+        return false;
+      }
 
       const auth = getAuth();
-      if (!auth.currentUser) return false;
+      if (!auth.currentUser) {
+        console.log("[SESSION] invalid: auth.currentUser missing");
+        return false;
+      }
 
       const inactivityLimit = session.rememberMe
         ? 7 * 24 * 60 * 60 * 1000 // 7 days
@@ -49,6 +55,14 @@ export const sessionService = {
       
       // Check both session activity and Firebase auth state
       const isActive = Date.now() - session.lastActivity < inactivityLimit;
+      if (!isActive) {
+        console.log("[SESSION] invalid: inactivity exceeded", {
+          lastActivity: session.lastActivity,
+          inactivityLimit,
+          now: Date.now(),
+          rememberMe: session.rememberMe,
+        });
+      }
       return isActive && !!auth.currentUser;
     } catch (err) {
       console.error("Session validation error:", err);
