@@ -26,10 +26,12 @@ import {
   setDoc,
   getFirestore,
   getDoc,
+  Timestamp,
 } from "firebase/firestore";
 import { initializeApp } from "firebase/app";
 import { markOverdueTests } from "./services/tatOverdueCheck.js";
 import cron from "node-cron";
+import crypto from "crypto";
 
 // Environment validation
 const requiredEnvVars = ['NODE_ENV'];
@@ -100,6 +102,78 @@ admin.initializeApp({
 
 // Multer setup to handle FormData
 const upload = multer();
+
+// --- Simple session storage in Firestore ---
+const SESSIONS_COLLECTION = "sessions";
+const SESSION_COOKIE = "lp_sid";
+
+function parseCookies(req) {
+  const header = req.headers?.cookie || "";
+  return header.split(";").reduce((acc, part) => {
+    const [k, v] = part.trim().split("=");
+    if (k) acc[k] = decodeURIComponent(v || "");
+    return acc;
+  }, {});
+}
+
+function setSessionCookie(res, sessionId, rememberMe) {
+  const maxAge = rememberMe ? 7 * 24 * 60 * 60 : 12 * 60 * 60; // seconds
+  const attrs = [
+    `${SESSION_COOKIE}=${encodeURIComponent(sessionId)}`,
+    "Path=/",
+    "HttpOnly",
+    "Secure",
+    "SameSite=Lax",
+    `Max-Age=${maxAge}`,
+  ];
+  res.setHeader("Set-Cookie", attrs.join("; "));
+}
+
+function clearSessionCookie(res) {
+  res.setHeader(
+    "Set-Cookie",
+    `${SESSION_COOKIE}=; Path=/; HttpOnly; Secure; SameSite=Lax; Max-Age=0`
+  );
+}
+
+async function createSession(userId, userName, rememberMe) {
+  const sessionId = crypto.randomUUID();
+  const now = Date.now();
+  const expiresAt = rememberMe ? now + 7 * 24 * 60 * 60 * 1000 : now + 12 * 60 * 60 * 1000;
+  await setDoc(doc(db, SESSIONS_COLLECTION, sessionId), {
+    userId,
+    userName,
+    rememberMe,
+    lastActivity: now,
+    expiresAt,
+    createdAt: Timestamp.fromMillis(now),
+    updatedAt: Timestamp.fromMillis(now),
+  });
+  return { sessionId, expiresAt };
+}
+
+async function validateSession(sessionId) {
+  if (!sessionId) return null;
+  const snap = await getDoc(doc(db, SESSIONS_COLLECTION, sessionId));
+  if (!snap.exists()) return null;
+  const data = snap.data();
+  const now = Date.now();
+  if (!data.expiresAt || data.expiresAt < now) return null;
+  await setDoc(
+    doc(db, SESSIONS_COLLECTION, sessionId),
+    {
+      lastActivity: now,
+      updatedAt: Timestamp.fromMillis(now),
+    },
+    { merge: true }
+  );
+  return { sessionId, userId: data.userId, userName: data.userName, rememberMe: data.rememberMe };
+}
+
+async function destroySession(sessionId) {
+  if (!sessionId) return;
+  await setDoc(doc(db, SESSIONS_COLLECTION, sessionId), { expiresAt: 0 }, { merge: true });
+}
 
 app.post("/send-notification", async (req, res) => {
   const { token, message } = req.body;
@@ -177,6 +251,60 @@ app.post("/send-loan-res-email", async (req, res) => {
     res.status(200).send({ success: true, response });
   } catch (error) {
     res.status(500).send(error);
+  }
+});
+
+// Session endpoints
+// Initialize session after client verifies Firebase auth; client supplies userId, userName, rememberMe
+app.post("/session/init", async (req, res) => {
+  try {
+    const { userId, userName, rememberMe } = req.body || {};
+    if (!userId || !userName) {
+      return res.status(400).send({ success: false, error: "Missing userId or userName" });
+    }
+    const { sessionId, expiresAt } = await createSession(userId, userName, !!rememberMe);
+    setSessionCookie(res, sessionId, !!rememberMe);
+    console.log("[SESSION] init", { userId, userName, rememberMe, sessionId, expiresAt });
+    res.status(200).send({ success: true, sessionId, expiresAt });
+  } catch (error) {
+    console.error("[SESSION] init failed:", error);
+    res.status(500).send({ success: false, error: error.message });
+  }
+});
+
+// Validate current session cookie
+app.get("/session/validate", async (req, res) => {
+  try {
+    const cookies = parseCookies(req);
+    const sessionId = cookies[SESSION_COOKIE];
+    const session = await validateSession(sessionId);
+    if (!session) {
+      clearSessionCookie(res);
+      console.warn("[SESSION] validate failed", { sessionId });
+      return res.status(401).send({ success: false, error: "Invalid session" });
+    }
+    console.log("[SESSION] validate ok", { sessionId, userId: session.userId, rememberMe: session.rememberMe });
+    res.status(200).send({ success: true, session });
+  } catch (error) {
+    console.error("[SESSION] validate failed:", error);
+    res.status(500).send({ success: false, error: error.message });
+  }
+});
+
+// Logout / destroy session
+app.post("/session/logout", async (req, res) => {
+  try {
+    const cookies = parseCookies(req);
+    const sessionId = cookies[SESSION_COOKIE];
+    if (sessionId) {
+      await destroySession(sessionId);
+      console.log("[SESSION] logout", { sessionId });
+    }
+    clearSessionCookie(res);
+    res.status(200).send({ success: true });
+  } catch (error) {
+    console.error("[SESSION] logout failed:", error);
+    res.status(500).send({ success: false, error: error.message });
   }
 });
 

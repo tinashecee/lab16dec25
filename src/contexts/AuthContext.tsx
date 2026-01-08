@@ -22,6 +22,7 @@ import { authService } from "../services/authService";
 import { db } from "../config/firebase";
 import { collection, query, where, getDocs } from "firebase/firestore";
 import { activityLogService, formatActivityDetails } from '../services/activityLogService';
+import { useAuthHeartbeat } from "../hooks/useAuthHeartbeat";
 
 type UserData = Omit<AppUser, 'id'> & {
   id: string;
@@ -64,6 +65,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [userData, setUserData] = useState<UserData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+
+  // Debug heartbeat to confirm auth persistence without logging out users
+  useAuthHeartbeat();
 
   const restoreSession = useCallback((userData: UserData) => {
     setUserData(userData);
@@ -133,6 +137,19 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       document.removeEventListener('visibilitychange', activityHandler);
     };
   }, []);
+
+  // Heartbeat/validate: check auth.currentUser presence without clearing session
+  useEffect(() => {
+    const interval = setInterval(() => {
+      const current = auth.currentUser;
+      console.log("[AUTH] heartbeat", {
+        uid: current?.uid || null,
+        email: current?.email || null,
+        hasUserData: !!userData,
+      });
+    }, 5 * 60 * 1000); // every 5 minutes
+    return () => clearInterval(interval);
+  }, [userData]);
 
   const loadUserData = async (email?: string | null) => {
     if (!email) {
